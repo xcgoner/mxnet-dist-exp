@@ -6,7 +6,7 @@
 	url = https://github.com/dmlc/dmlc-core.git
 [submodule "3rdparty/ps-lite"]
 	path = 3rdparty/ps-lite
-	url = https://github.com/dmlc/ps-lite
+	url = https://github.com/threeleafzerg/ps-lite.git
 [submodule "3rdparty/nnvm"]
 	path = 3rdparty/nnvm
 	url = https://github.com/dmlc/nnvm
