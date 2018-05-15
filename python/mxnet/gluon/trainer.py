@@ -125,8 +125,11 @@ class Trainer(object):
             # optimizer preferably needs to be set before init for multiprecision
             for i, param in enumerate(self._params):
                 param_arrays = param.list_data()
-                kvstore.init(i, param_arrays[0])
-                kvstore.pull(i, param_arrays, priority=-i)
+                if 'allreduce' not in kvstore.type:
+                    kvstore.init(i, param_arrays[0])
+                    kvstore.pull(i, param_arrays, priority=-i)
+                else:
+                    kvstore.broadcast(i, param_arrays, 0, priority=-i)
             self._kvstore = kvstore
             self._update_on_kvstore = update_on_kvstore
         else:
@@ -207,11 +210,13 @@ class Trainer(object):
         if self._kvstore:
             for i, param in enumerate(self._params):
                 if param.grad_req != 'null':
+                    if 'allreduce' not in self._kvstore.type:
+                        self._kvstore.push(i, param.list_grad(), priority=-i)
 
-                    self._kvstore.push(i, param.list_grad(), priority=-i)
-
-                    if not self._update_on_kvstore:
-                        self._kvstore.pull(i, param.list_grad(), priority=-i)
+                        if not self._update_on_kvstore:
+                            self._kvstore.pull(i, param.list_grad(), priority=-i)
+                    else:
+                        self._kvstore.pushpull(i, param.list_grad(), param.list_grad(), priority=-i)
 
     def update(self, batch_size, ignore_stale_grad=False):
         """Makes one step of parameter update.
