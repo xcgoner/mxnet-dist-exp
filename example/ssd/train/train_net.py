@@ -171,9 +171,9 @@ def train_net(net, train_path, num_classes, batch_size,
     """
 
     kv = mx.kvstore.create(kv_store)
-    if args.gc_type != 'none':
-        kv.set_gradient_compression({'type': args.gc_type,
-                                     'threshold': args.gc_threshold})
+    # if args.gc_type != 'none':
+    #     kv.set_gradient_compression({'type': args.gc_type,
+    #                                  'threshold': args.gc_threshold})
 
     # set up logger
     head = '%(asctime)-15s Node[' + str(kv.rank) + '] %(message)s'
