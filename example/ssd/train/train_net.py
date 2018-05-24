@@ -27,7 +27,7 @@ from train.metric import MultiBoxMetric
 from evaluate.eval_metric import MApMetric, VOC07MApMetric
 from config.config import cfg
 from symbol.symbol_factory import get_symbol_train
-import mpi_collectives as mpi
+# import mpi_collectives as mpi
 
 def convert_pretrained(name, args):
     """
@@ -77,7 +77,7 @@ def get_lr_scheduler(learning_rate, lr_refactor_step, lr_refactor_ratio,
     else:
         lr = learning_rate
         epoch_size = num_example // batch_size
-        if 'dist' in args.kv_store:
+        if 'dist' in kv_store:
             epoch_size /= kv.num_workers
         for s in iter_refactor:
             if begin_epoch >= s:
@@ -169,10 +169,17 @@ def train_net(net, train_path, num_classes, batch_size,
     log_file : str
         log to file if enabled
     """
+
+    kv = mx.kvstore.create(kv_store)
+    if args.gc_type != 'none':
+        kv.set_gradient_compression({'type': args.gc_type,
+                                     'threshold': args.gc_threshold})
+
     # set up logger
-    logging.basicConfig()
+    head = '%(asctime)-15s Node[' + str(kv.rank) + '] %(message)s'
+    logging.basicConfig(format=head)
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     if log_file:
         fh = logging.FileHandler(log_file)
         logger.addHandler(fh)
@@ -242,7 +249,6 @@ def train_net(net, train_path, num_classes, batch_size,
     mod = mx.mod.Module(net, label_names=('label',), logger=logger, context=ctx,
                         fixed_param_names=fixed_param_names)
 
-    kv = mx.kvstore.create(kv_store)
 
     # fit parameters
     batch_end_callback = mx.callback.Speedometer(train_iter.batch_size, frequent=frequent)
