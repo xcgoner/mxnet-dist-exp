@@ -27,6 +27,7 @@ from train.metric import MultiBoxMetric
 from evaluate.eval_metric import MApMetric, VOC07MApMetric
 from config.config import cfg
 from symbol.symbol_factory import get_symbol_train
+import mpi_collectives as mpi
 
 def convert_pretrained(name, args):
     """
@@ -46,7 +47,7 @@ def convert_pretrained(name, args):
     return args
 
 def get_lr_scheduler(learning_rate, lr_refactor_step, lr_refactor_ratio,
-                     num_example, batch_size, begin_epoch):
+                     num_example, batch_size, begin_epoch, kv_store, kv):
     """
     Compute learning rate and refactor scheduler
 
@@ -76,6 +77,8 @@ def get_lr_scheduler(learning_rate, lr_refactor_step, lr_refactor_ratio,
     else:
         lr = learning_rate
         epoch_size = num_example // batch_size
+        if 'dist' in args.kv_store:
+            epoch_size /= kv.num_workers
         for s in iter_refactor:
             if begin_epoch >= s:
                 lr *= lr_refactor_ratio
@@ -89,7 +92,7 @@ def get_lr_scheduler(learning_rate, lr_refactor_step, lr_refactor_ratio,
 
 def train_net(net, train_path, num_classes, batch_size,
               data_shape, mean_pixels, resume, finetune, pretrained, epoch,
-              prefix, ctx, begin_epoch, end_epoch, frequent, learning_rate,
+              prefix, ctx, begin_epoch, end_epoch, frequent, kv_store, learning_rate,
               momentum, weight_decay, lr_refactor_step, lr_refactor_ratio,
               freeze_layer_pattern='',
               num_example=10000, label_pad_width=350,
@@ -239,11 +242,13 @@ def train_net(net, train_path, num_classes, batch_size,
     mod = mx.mod.Module(net, label_names=('label',), logger=logger, context=ctx,
                         fixed_param_names=fixed_param_names)
 
+    kv = mx.kvstore.create(kv_store)
+
     # fit parameters
     batch_end_callback = mx.callback.Speedometer(train_iter.batch_size, frequent=frequent)
     epoch_end_callback = mx.callback.do_checkpoint(prefix)
     learning_rate, lr_scheduler = get_lr_scheduler(learning_rate, lr_refactor_step,
-        lr_refactor_ratio, num_example, batch_size, begin_epoch)
+        lr_refactor_ratio, num_example, batch_size, begin_epoch, kv_store, kv)
     optimizer_params={'learning_rate':learning_rate,
                       'momentum':momentum,
                       'wd':weight_decay,
@@ -264,6 +269,7 @@ def train_net(net, train_path, num_classes, batch_size,
             validation_metric=valid_metric,
             batch_end_callback=batch_end_callback,
             epoch_end_callback=epoch_end_callback,
+            kvstore = kv, 
             optimizer='sgd',
             optimizer_params=optimizer_params,
             begin_epoch=begin_epoch,
