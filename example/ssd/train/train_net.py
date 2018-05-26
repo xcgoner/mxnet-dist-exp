@@ -79,6 +79,7 @@ def get_lr_scheduler(learning_rate, lr_refactor_step, lr_refactor_ratio,
         epoch_size = num_example // batch_size
         if 'dist' in kv_store:
             epoch_size /= kv.num_workers
+            # lr *= kv.num_workers
         for s in iter_refactor:
             if begin_epoch >= s:
                 lr *= lr_refactor_ratio
@@ -255,12 +256,13 @@ def train_net(net, train_path, num_classes, batch_size,
     epoch_end_callback = mx.callback.do_checkpoint(prefix)
     learning_rate, lr_scheduler = get_lr_scheduler(learning_rate, lr_refactor_step,
         lr_refactor_ratio, num_example, batch_size, begin_epoch, kv_store, kv)
+    epoch_size = num_example / batch_size / kv.num_workers
     optimizer_params={'learning_rate':learning_rate,
                       'momentum':momentum,
                       'wd':weight_decay,
                       'lr_scheduler':lr_scheduler,
                       'clip_gradient':None,
-                      'rescale_grad': 1.0 / len(ctx) if len(ctx) > 0 else 1.0 }
+                      'rescale_grad': 1.0 / len(ctx) if len(ctx) > 0 else 1.0}
     monitor = mx.mon.Monitor(iter_monitor, pattern=monitor_pattern) if iter_monitor > 0 else None
 
     # run fit net, every n epochs we run evaluation network to get mAP
