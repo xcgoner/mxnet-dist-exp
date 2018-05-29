@@ -80,6 +80,8 @@ def get_lr_scheduler(learning_rate, lr_refactor_step, lr_refactor_ratio,
         if 'dist' in kv_store:
             epoch_size /= kv.num_workers
             # lr *= kv.num_workers
+            lr *= (1.0 + float(kv.num_workers)/4)
+            logging.getLogger().info("Adjusted learning rate to {} for distributed training".format(lr))
         for s in iter_refactor:
             if begin_epoch >= s:
                 lr *= lr_refactor_ratio
