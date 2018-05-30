@@ -38,7 +38,7 @@
 #--------------------
 
 export CC = mpicc
-export CXX = mpic++
+export CXX = mpiCC
 export NVCC = nvcc
 
 # whether compile with options for MXNet developer
@@ -159,6 +159,7 @@ USE_ALLREDUCE_DIST_KVSTORE = 1
 # upon $(MPI_ROOT)/include $(MPI_ROOT)/lib, user need to
 # set this path, otherwise we will use default mpi (mpich).
 MPI_ROOT = /usr/local/mpi
+# MPI_ROOT = 
 
 # whether or not allow to read and write HDFS directly. If yes, then hadoop is
 # required
